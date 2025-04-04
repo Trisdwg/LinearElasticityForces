@@ -55,9 +55,10 @@ int main(void)
     double rho = 7.85e3; 
     double g   = 9.81;
     femProblem* theProblem = femElasticityCreate(theGeometry,E,nu,rho,g,PLANAR_STRAIN);
+    renumberMesh(theProblem->geometry);
     femElasticityAddBoundaryCondition(theProblem, "Inner", DIRICHLET_X, 0.0);
     femElasticityAddBoundaryCondition(theProblem, "Inner", DIRICHLET_Y, 0.0);
-    // femElasticityAddBoundaryCondition(theProblem, "Force", NEUMANN_X, 1.0e5);
+    // femElasticityAddBoundaryCondition(theProblem, "Force", NEUMANN_X, 0.0);
     femElasticityPrint(theProblem);
 
 //
@@ -65,6 +66,7 @@ int main(void)
 //
 
     // double *theSoluce = femElasticitySolve(theProblem);
+    
     double *theSoluce = femElasticitySolveBandRCMK(theProblem);
     double *theForces = femElasticityForces(theProblem);
     double area = femElasticityIntegrate(theProblem, fun);   
