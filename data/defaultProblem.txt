@@ -1,0 +1,5 @@
+Young modulus: 211.e9
+Density: 7.85e3
+Poisson ratio: 0.3
+Force intensity: -10.0e3
+Gravity: 9.81

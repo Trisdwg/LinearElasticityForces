@@ -25,13 +25,21 @@ int main(int argc, char *argv[])
     printf("    N : Next domain highlighted\n\n\n");
 
     char *inputfile = "../data/mesh2,7k.txt";
+    char *problemfile = "../data/defaultProblem.txt";
     int useGaussSolver = 0;
+    femElasticCase cas = PLANAR_STRESS;
 
     for(int i =0; i < argc; ++i){
         if(strncasecmp(argv[i], "-in",3)==0)
             inputfile = argv[i+1];
         if(strncasecmp(argv[i], "-gauss",5)==0)
             useGaussSolver = 1;
+        if(strncasecmp(argv[i], "-p", 2)==0)
+            problemfile = argv[i+1];
+        if(strncasecmp(argv[i], "-axisym", 7)==0)
+            cas = AXISYM;
+        if(strncasecmp(argv[i], "-defoplane", 13)==0)
+            cas = PLANAR_STRAIN;
     }
 
     printf("Input file: %s\n", inputfile);
@@ -80,16 +88,21 @@ int main(int argc, char *argv[])
 //
 //  -2- Creation probleme 
 //
-    
-    double E   = 211.e9;
-    double nu  = 0.3;
-    double rho = 7.85e3; 
-    double g   = 9.81;
-    femProblem* theProblem = femElasticityCreate(theGeometry,E,nu,rho,g,PLANAR_STRAIN);
+
+    double E, nu, rho, g;
+    double forceIntensity;
+    FILE *file = fopen(problemfile, "r");
+    ErrorScan(fscanf(file, "Young modulus: %le \n", &E));
+    ErrorScan(fscanf(file, "Density: %le \n", &rho));
+    ErrorScan(fscanf(file, "Poisson ratio: %le \n", &nu));
+    ErrorScan(fscanf(file, "Force intensity: %le \n", &forceIntensity));
+    ErrorScan(fscanf(file, "Gravity: %le\n", &g));
+    fclose(file);
+    femProblem* theProblem = femElasticityCreate(theGeometry,E,nu,rho,g,cas);
     renumberMesh(theProblem->geometry);
     femElasticityAddBoundaryCondition(theProblem, "Inner", DIRICHLET_X, 0.0);
     femElasticityAddBoundaryCondition(theProblem, "Inner", DIRICHLET_Y, 0.0);
-    femElasticityAddBoundaryCondition(theProblem, "Force", NEUMANN_Y, -10.0e3);
+    femElasticityAddBoundaryCondition(theProblem, "Force", NEUMANN_Y, forceIntensity);
     femElasticityPrint(theProblem);
 
 //
