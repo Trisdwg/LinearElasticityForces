@@ -198,277 +198,286 @@ double *femElasticityForces(femProblem *theProblem)
 }
 
 void renumberMesh(femGeo *theGeometry) {
-    if (theGeometry == NULL || theGeometry->theNodes == NULL) {
-        Error("theGeometry ou theNodes non initialisé");
+    if (!theGeometry || !theGeometry->theNodes) {
+        Error("Geometry or nodes not initialized");
     }
- 
+
     int nNodes = theGeometry->theNodes->nNodes;
- 
-    /* --- 1. Construction de la liste d’adjacence --- */
-    // On utilise la connectivité des éléments si disponible, sinon celle des arêtes.
-    femMesh *mesh = (theGeometry->theElements) ? theGeometry->theElements : theGeometry->theEdges;
+
+    //Build adjacency list
+    femMesh *mesh = theGeometry->theElements ? theGeometry->theElements : theGeometry->theEdges;
     if (!mesh) {
-        Error("Aucune connectivité (éléments/ arêtes) disponible pour la renumérotation RCM.");
+        Error("No connectivity (elements/edges) available for RCM renumbering");
     }
+
     int nElem = mesh->nElem;
     int nLocal = mesh->nLocalNode;
     int *elem = mesh->elem;
- 
-    // Allocation de la structure temporaire pour chaque nœud
+
     typedef struct {
         int count;
         int capacity;
         int *neighbors;
-    } NodeNeighbors;
-    NodeNeighbors *adj = malloc(nNodes * sizeof(NodeNeighbors));
-    if (adj == NULL) {
-        Error("Allocation mémoire échouée pour 'adj'");
+    } NodeAdjacency;
+
+    NodeAdjacency *adjList = malloc(nNodes * sizeof(NodeAdjacency));
+    if (!adjList) {
+        Error("Memory allocation failed for adjacency list");
     }
+
     for (int i = 0; i < nNodes; i++) {
-        adj[i].count = 0;
-        adj[i].capacity = 4; // capacité initiale
-        adj[i].neighbors = malloc(adj[i].capacity * sizeof(int));
-        if (adj[i].neighbors == NULL) {
-            Error("Allocation mémoire échouée pour 'adj[i].neighbors'");
+        adjList[i].count = 0;
+        adjList[i].capacity = 4;
+        adjList[i].neighbors = malloc(adjList[i].capacity * sizeof(int));
+        if (!adjList[i].neighbors) {
+            Error("Memory allocation failed for adjacency neighbors");
         }
     }
- 
-    // Pour chaque élément, ajouter une arête entre chaque paire de nœuds
+
     for (int e = 0; e < nElem; e++) {
         for (int i = 0; i < nLocal; i++) {
             for (int j = i + 1; j < nLocal; j++) {
                 int ni = elem[e * nLocal + i];
                 int nj = elem[e * nLocal + j];
-                // Ajout de nj comme voisin de ni si non déjà présent
-                int exists = 0;
-                for (int k = 0; k < adj[ni].count; k++) {
-                    if (adj[ni].neighbors[k] == nj) { exists = 1; break; }
-                }
-                if (!exists) {
-                    if (adj[ni].count == adj[ni].capacity) {
-                        adj[ni].capacity *= 2;
-                        adj[ni].neighbors = realloc(adj[ni].neighbors, adj[ni].capacity * sizeof(int));
+
+                // Add nj as a neighbor of ni
+                int found = 0;
+                for (int k = 0; k < adjList[ni].count; k++) {
+                    if (adjList[ni].neighbors[k] == nj) {
+                        found = 1;
+                        break;
                     }
-                    adj[ni].neighbors[adj[ni].count++] = nj;
                 }
-                // Ajout de ni comme voisin de nj
-                exists = 0;
-                for (int k = 0; k < adj[nj].count; k++) {
-                    if (adj[nj].neighbors[k] == ni) { exists = 1; break; }
-                }
-                if (!exists) {
-                    if (adj[nj].count == adj[nj].capacity) {
-                        adj[nj].capacity *= 2;
-                        adj[nj].neighbors = realloc(adj[nj].neighbors, adj[nj].capacity * sizeof(int));
+                if (!found) {
+                    if (adjList[ni].count == adjList[ni].capacity) {
+                        adjList[ni].capacity *= 2;
+                        adjList[ni].neighbors = realloc(adjList[ni].neighbors, adjList[ni].capacity * sizeof(int));
                     }
-                    adj[nj].neighbors[adj[nj].count++] = ni;
+                    adjList[ni].neighbors[adjList[ni].count++] = nj;
+                }
+
+                // Add ni as a neighbor of nj
+                found = 0;
+                for (int k = 0; k < adjList[nj].count; k++) {
+                    if (adjList[nj].neighbors[k] == ni) {
+                        found = 1;
+                        break;
+                    }
+                }
+                if (!found) {
+                    if (adjList[nj].count == adjList[nj].capacity) {
+                        adjList[nj].capacity *= 2;
+                        adjList[nj].neighbors = realloc(adjList[nj].neighbors, adjList[nj].capacity * sizeof(int));
+                    }
+                    adjList[nj].neighbors[adjList[nj].count++] = ni;
                 }
             }
         }
     }
- 
-    /* --- 2. Calcul de l’ordre RCM --- */
-    // Allocation d'un tableau pour l'ordre RCM et d'un tableau de marqueurs de visite.
-    int *rcm_order = malloc(nNodes * sizeof(int));
+
+    //Compute RCM order
+    int *rcmOrder = malloc(nNodes * sizeof(int));
     int *visited = calloc(nNodes, sizeof(int));
-    if (rcm_order == NULL || visited == NULL) {
-        Error("Allocation mémoire échouée pour rcm_order ou visited");
+    if (!rcmOrder || !visited) {
+        Error("Memory allocation failed for RCM order or visited array");
     }
-    int rcm_index = 0;
- 
-    // Parcourir tous les nœuds pour traiter chaque composante connexe.
+
+    int rcmIndex = 0;
     for (int start = 0; start < nNodes; start++) {
         if (!visited[start]) {
-            // Pour cette composante, on choisit le nœud de départ (ici, start).
-            int root = start;
-            // Utilisation d'une file pour le parcours en largeur (BFS)
             int *queue = malloc(nNodes * sizeof(int));
-            if (queue == NULL) { Error("Allocation mémoire échouée pour la file"); }
-            int q_start = 0, q_end = 0;
-            queue[q_end++] = root;
-            visited[root] = 1;
-            while (q_start < q_end) {
-                int curr = queue[q_start++];
-                rcm_order[rcm_index++] = curr;
- 
-                // Récupérer les voisins non visités de curr
-                int numNeighbors = 0;
-                int *temp = malloc(adj[curr].count * sizeof(int));
-                if (temp == NULL) { Error("Allocation mémoire échouée pour temp"); }
-                for (int i = 0; i < adj[curr].count; i++) {
-                    int nb = adj[curr].neighbors[i];
-                    if (!visited[nb]) {
-                        temp[numNeighbors++] = nb;
-                        visited[nb] = 1;
+            if (!queue) {
+                Error("Memory allocation failed for BFS queue");
+            }
+
+            int qStart = 0, qEnd = 0;
+            queue[qEnd++] = start;
+            visited[start] = 1;
+
+            while (qStart < qEnd) {
+                int current = queue[qStart++];
+                rcmOrder[rcmIndex++] = current;
+
+                int *neighbors = malloc(adjList[current].count * sizeof(int));
+                if (!neighbors) {
+                    Error("Memory allocation failed for neighbors");
+                }
+
+                int neighborCount = 0;
+                for (int i = 0; i < adjList[current].count; i++) {
+                    int neighbor = adjList[current].neighbors[i];
+                    if (!visited[neighbor]) {
+                        neighbors[neighborCount++] = neighbor;
+                        visited[neighbor] = 1;
                     }
                 }
-                // Trier les voisins par degré croissant
-                for (int i = 0; i < numNeighbors - 1; i++) {
-                    for (int j = i + 1; j < numNeighbors; j++) {
-                        if (adj[temp[i]].count > adj[temp[j]].count) {
-                            int swap = temp[i];
-                            temp[i] = temp[j];
-                            temp[j] = swap;
+
+                // Sort neighbors by degree
+                for (int i = 0; i < neighborCount - 1; i++) {
+                    for (int j = i + 1; j < neighborCount; j++) {
+                        if (adjList[neighbors[i]].count > adjList[neighbors[j]].count) {
+                            int temp = neighbors[i];
+                            neighbors[i] = neighbors[j];
+                            neighbors[j] = temp;
                         }
                     }
                 }
-                // Ajouter les voisins triés à la file
-                for (int i = 0; i < numNeighbors; i++) {
-                    queue[q_end++] = temp[i];
+
+                for (int i = 0; i < neighborCount; i++) {
+                    queue[qEnd++] = neighbors[i];
                 }
-                free(temp);
+
+                free(neighbors);
             }
+
             free(queue);
         }
     }
+
     free(visited);
- 
-    // Inverser l'ordre obtenu pour obtenir l'ordre RCM
+
+    // Reverse RCM order
     for (int i = 0; i < nNodes / 2; i++) {
-        int tmp = rcm_order[i];
-        rcm_order[i] = rcm_order[nNodes - i - 1];
-        rcm_order[nNodes - i - 1] = tmp;
+        int temp = rcmOrder[i];
+        rcmOrder[i] = rcmOrder[nNodes - i - 1];
+        rcmOrder[nNodes - i - 1] = temp;
     }
- 
-    /* --- 3. Construction du mapping à partir de l'ordre RCM --- */
-    // mapping[old_index] = new_index
+
+    // Step 3: Create mapping from old to new indices
     int *mapping = malloc(nNodes * sizeof(int));
-    if (mapping == NULL) {
-        Error("Allocation mémoire échouée pour mapping");
+    if (!mapping) {
+        Error("Memory allocation failed for mapping");
     }
+
     for (int i = 0; i < nNodes; i++) {
-        mapping[rcm_order[i]] = i;
+        mapping[rcmOrder[i]] = i;
     }
- 
-    /* --- 4. Réorganisation des tableaux de coordonnées --- */
+
+    //Update node coordinates
     double *newX = malloc(nNodes * sizeof(double));
     double *newY = malloc(nNodes * sizeof(double));
-    if (newX == NULL || newY == NULL) {
-        Error("Allocation mémoire échouée pour les nouveaux tableaux de coordonnées");
+    if (!newX || !newY) {
+        Error("Memory allocation failed for new coordinates");
     }
+
     for (int i = 0; i < nNodes; i++) {
-        newX[i] = theGeometry->theNodes->X[rcm_order[i]];
-        newY[i] = theGeometry->theNodes->Y[rcm_order[i]];
+        newX[i] = theGeometry->theNodes->X[rcmOrder[i]];
+        newY[i] = theGeometry->theNodes->Y[rcmOrder[i]];
     }
+
     free(theGeometry->theNodes->X);
     free(theGeometry->theNodes->Y);
     theGeometry->theNodes->X = newX;
     theGeometry->theNodes->Y = newY;
- 
-    /* --- 5. Mise à jour de la connectivité --- */
-    // Pour les arêtes
-    femMesh *edges = theGeometry->theEdges;
-    if (edges) {
+
+    //Update connectivity
+    if (theGeometry->theEdges) {
+        femMesh *edges = theGeometry->theEdges;
         for (int i = 0; i < edges->nElem; i++) {
             for (int j = 0; j < edges->nLocalNode; j++) {
-                int oldIndex = edges->elem[i * edges->nLocalNode + j];
-                edges->elem[i * edges->nLocalNode + j] = mapping[oldIndex];
+                edges->elem[i * edges->nLocalNode + j] = mapping[edges->elem[i * edges->nLocalNode + j]];
             }
         }
     }
-    // Pour les éléments
+
     if (theGeometry->theElements) {
-        femMesh *elems = theGeometry->theElements;
-        for (int i = 0; i < elems->nElem; i++) {
-            for (int j = 0; j < elems->nLocalNode; j++) {
-                int oldIndex = elems->elem[i * elems->nLocalNode + j];
-                elems->elem[i * elems->nLocalNode + j] = mapping[oldIndex];
+        femMesh *elements = theGeometry->theElements;
+        for (int i = 0; i < elements->nElem; i++) {
+            for (int j = 0; j < elements->nLocalNode; j++) {
+                elements->elem[i * elements->nLocalNode + j] = mapping[elements->elem[i * elements->nLocalNode + j]];
             }
         }
     }
- 
-    /* --- 6. Libération des ressources temporaires --- */
+
+    //Free temporary resources
     for (int i = 0; i < nNodes; i++) {
-        free(adj[i].neighbors);
+        free(adjList[i].neighbors);
     }
-    free(adj);
-    free(rcm_order);
+    free(adjList);
+    free(rcmOrder);
     free(mapping);
 }
 
 
 
-
 double* femElasticitySolveBandRCMK(femProblem* theProblem) {
-    // Récupération du système complet
+    // Retrieve the full system
     femFullSystem* theSystem = theProblem->system;
     int n = theSystem->size;
     double **A = theSystem->A;
     double *B = theSystem->B;
-    const double tol = 1e-12;
-    int i, j, k;
- 
-    //////
- 
- 
-    femFullSystemInit(theSystem); //initialiser le syst
+    const double tolerance = 1e-12;
+
+    // Initialize the system and assemble elements and Neumann conditions
+    femFullSystemInit(theSystem);
     femElasticityAssembleElements(theProblem);
     femElasticityAssembleNeumann(theProblem);
 
-
- 
-    int size = theSystem->size; //pour l'allocation de la memoire pour A et B
-    
-    if (A_copy == NULL)
-    {
-        A_copy = (double **) malloc(sizeof(double *) * size);
-        for (int i = 0; i < size; i++) { A_copy[i] = (double *) malloc(sizeof(double) * size); }
+    // Allocate memory for copies of A and B if not already done
+    if (A_copy == NULL) {
+        A_copy = (double **) malloc(n * sizeof(double *));
+        for (int i = 0; i < n; i++) {
+            A_copy[i] = (double *) malloc(n * sizeof(double));
+        }
     }
-    if (B_copy == NULL) { B_copy = (double *) malloc(sizeof(double) * size); }
-    
- 
-    for (int i = 0; i < size; i++)
-    {
-        for (int j = 0; j < size; j++) {
+    if (B_copy == NULL) {
+        B_copy = (double *) malloc(n * sizeof(double));
+    }
+
+    // Create copies of A and B for later use
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
             A_copy[i][j] = A[i][j];
         }
         B_copy[i] = B[i];
     }
- 
-    //mnt on peut appliquer dirichlet, les copies sont pretes pour le calcul des forces
-    int *theConstrainedNodes = theProblem->constrainedNodes;
-    for (int i = 0; i < size; i++){
-        if (theConstrainedNodes[i] != -1){
-            double value = theProblem->conditions[theConstrainedNodes[i]]->value;
+
+    // Apply Dirichlet boundary conditions
+    int *constrainedNodes = theProblem->constrainedNodes;
+    for (int i = 0; i < n; i++) {
+        if (constrainedNodes[i] != -1) {
+            double value = theProblem->conditions[constrainedNodes[i]]->value;
             femFullSystemConstrain(theSystem, i, value);
         }
     }
-    // 1. Calculer la largeur de bande effective directement sur A
-    int bw = 0;
-    for (i = 0; i < n; i++){
-        for (j = i; j < n; j++){
-            if (fabs(A[i][j]) > tol && (j - i) > bw)
-                bw = j - i;
+
+    // Calculate the effective bandwidth of the matrix
+    int bandwidth = 0;
+    for (int i = 0; i < n; i++) {
+        for (int j = i; j < n; j++) {
+            if (fabs(A[i][j]) > tolerance && (j - i) > bandwidth) {
+                bandwidth = j - i;
+            }
         }
     }
-    printf("Solveur bande : largeur de bande = %d\n", bw);
- 
-    // 2. Elimination de Gauss restreinte à la bande.
-    for (k = 0; k < n; k++){
-        if (fabs(A[k][k]) <= tol) {
-            printf("Pivot index %d, valeur %e\n", k, A[k][k]);
+    printf("Band solver: bandwidth = %d\n", bandwidth);
+
+    // Perform Gaussian elimination restricted to the bandwidth
+    for (int k = 0; k < n; k++) {
+        if (fabs(A[k][k]) <= tolerance) {
+            printf("Pivot index %d, value %e\n", k, A[k][k]);
             Error("Cannot eliminate with such a pivot");
         }
-        int i_max = (k + bw + 1 < n) ? (k + bw + 1) : n;
-        for (i = k + 1; i < i_max; i++){
+        int rowLimit = (k + bandwidth + 1 < n) ? (k + bandwidth + 1) : n;
+        for (int i = k + 1; i < rowLimit; i++) {
             double factor = A[i][k] / A[k][k];
-            int j_max = (k + bw + 1 < n) ? (k + bw + 1) : n;
-            for (j = k + 1; j < j_max; j++){
+            int colLimit = (k + bandwidth + 1 < n) ? (k + bandwidth + 1) : n;
+            for (int j = k + 1; j < colLimit; j++) {
                 A[i][j] -= factor * A[k][j];
             }
             B[i] -= factor * B[k];
         }
     }
- 
-    // 3. Rétro-substitution dans la bande.
-    for (i = n - 1; i >= 0; i--){
+
+    // Perform back substitution within the bandwidth
+    for (int i = n - 1; i >= 0; i--) {
         double sum = 0.0;
-        int j_max = (i + bw + 1 < n) ? (i + bw + 1) : n;
-        for (j = i + 1; j < j_max; j++){
+        int colLimit = (i + bandwidth + 1 < n) ? (i + bandwidth + 1) : n;
+        for (int j = i + 1; j < colLimit; j++) {
             sum += A[i][j] * B[j];
         }
         B[i] = (B[i] - sum) / A[i][i];
     }
- 
+
     return B;
 }
