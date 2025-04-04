@@ -27,7 +27,7 @@ int main(void)
     geoInitialize();
     femGeo* theGeometry = geoGetGeometry();
   
-    // geoMeshGenerate();
+    // geoMeshGenerate(0.1);
     // geoMeshRead("../data/mesh.txt");
     // geoMeshPrint();
     // geoMeshImport();
@@ -40,10 +40,10 @@ int main(void)
     // geoMeshWrite("../data/meshAfterAssembleDomains.txt");
     // geoMeshPrint();
 
-    //geoMeshWrite("../data/mesh.txt");
-    // geoFinalize();
-    // geoInitialize();
-    geoMeshRead("../data/meshHeavy.txt");
+    // geoMeshWrite("../data/mesh.txt");
+    geoFinalize();
+    geoInitialize();
+    geoMeshRead("../data/mesh17k.txt");
     
         
 //
