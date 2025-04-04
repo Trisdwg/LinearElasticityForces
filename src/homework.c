@@ -743,6 +743,11 @@ double* femElasticitySolveBandRCMK(femProblem* theProblem) {
         B[i] = (B[i] - sum) / A[i][i];
     }
 
+
+    for(int i=0; i<n; i++){
+        theProblem->soluce[i] = B[i];
+    }
+
     return B;
 }
 
