@@ -20,4 +20,5 @@ Après compilation, un fichier binaire myFem est crée, celui-ci permet d'exécu
 
 # Résultats
 Lors de l'exécution du programme, un plot avec le champ de déformations s'affiche automatiquement, de plus les résultats numérique importants (min, max) sont données dans le terminal.
-**Parler ici des csv et des force"s**
+
+Il y a egalement des fichiers avec les contraines et les elongation sur chaque element qui se creent dans build. Pour obtenir la contraine maximale, executer givemaxcontr.py. 
