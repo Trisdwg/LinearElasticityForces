@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
     renumberMesh(theProblem->geometry);
     femElasticityAddBoundaryCondition(theProblem, "Inner", DIRICHLET_X, 0.0);
     femElasticityAddBoundaryCondition(theProblem, "Inner", DIRICHLET_Y, 0.0);
-    femElasticityAddBoundaryCondition(theProblem, "Force", NEUMANN_Y, -10.0e3);
+    femElasticityAddBoundaryCondition(theProblem, "Force", NEUMANN_Y, 10.0e4);
     femElasticityPrint(theProblem);
 
 //
