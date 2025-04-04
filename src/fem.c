@@ -451,11 +451,11 @@ void geoMeshGenerate(double lc) {
     }
     double beta = 2.0*asin(ri*curv*sin(alpha/2.0));
     double dist = ri*cos(alpha/2.0) + cos(beta/2.0)/curv;
-    int idOutDisk = gmshModelOccAddDisk(0,0,0,ro,ro,-1,NULL,NULL,NULL,NULL, &ierr);
+    int idOutDisk = gmshModelOccAddDisk(0,0,0,ro,ro,-1,NULL, (size_t)0 ,NULL,(size_t)0, &ierr);
     ErrorGmsh(ierr);
-    int idInDisk = gmshModelOccAddDisk(0,0,0,ri,ri,-1,NULL,NULL,NULL,NULL, &ierr);
+    int idInDisk = gmshModelOccAddDisk(0,0,0,ri,ri,-1,NULL,(size_t)0,NULL,(size_t)0, &ierr);
     ErrorGmsh(ierr);
-    int idCurvDisk  = gmshModelOccAddDisk(0,dist,0,1/curv,1/curv,-1,NULL,NULL,NULL,NULL, &ierr);
+    int idCurvDisk  = gmshModelOccAddDisk(0,dist,0,1/curv,1/curv,-1,NULL,(size_t)0,NULL,(size_t)0, &ierr);
     ErrorGmsh(ierr);
     int outDisk[] = {2, idOutDisk};
     int inDisk[] = {2, idInDisk};
@@ -478,13 +478,13 @@ void geoMeshGenerate(double lc) {
     ErrorGmsh(ierr);
   
     // Create tooth structure
-    int idTooth = gmshModelOccAddDisk(ro,0,0,toothLength,toothWidth,-1,NULL,NULL,NULL,NULL, &ierr);
+    int idTooth = gmshModelOccAddDisk(ro,0,0,toothLength,toothWidth,-1,NULL,(size_t)0,NULL,(size_t)0, &ierr);
     ErrorGmsh(ierr);
     int tooth[] = {2, idTooth};
-    int idTorus = gmshModelOccAddDisk(0,0,0,2*ro,2*ro,-1,NULL,NULL,NULL,NULL, &ierr);
+    int idTorus = gmshModelOccAddDisk(0,0,0,2*ro,2*ro,-1,NULL,(size_t)0,NULL,(size_t)0, &ierr);
     ErrorGmsh(ierr);
     int torus[] = {2, idTorus};
-    int idInTorus = gmshModelOccAddDisk(0,0,0,ro+(toothLength/1.25),ro+(toothLength/1.25),-1,NULL,NULL,NULL,NULL, &ierr);
+    int idInTorus = gmshModelOccAddDisk(0,0,0,ro+(toothLength/1.25),ro+(toothLength/1.25),-1,NULL,(size_t)0,NULL,(size_t)0, &ierr);
     ErrorGmsh(ierr);
     int inTorus[] = {2, idInTorus};
     gmshModelOccCut(torus, 2,inTorus, 2, NULL,NULL,NULL,NULL,NULL,-1,1,1,&ierr);
