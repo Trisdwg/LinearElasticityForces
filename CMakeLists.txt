@@ -22,6 +22,7 @@ add_compile_options(
     -Wno-unknown-pragmas 
     -Wno-unused-parameter
     -O3
+    -g
 )
 
 # GMSH

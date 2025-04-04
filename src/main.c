@@ -26,48 +26,24 @@ int main(void)
 
     geoInitialize();
     femGeo* theGeometry = geoGetGeometry();
-
-    double ri = 18.85;
-    double ro = 25.0;
-    double curv = 1.0/(1.0*ri);
-    double curvRatio = 0.4583333333333333;
-    int nTeeth = 32;
-    double toothLength = 3.0;
-    double toothWidth = 1.5;
-    theGeometry->Rinner = ri;
-    theGeometry->Router = ro;
-    theGeometry->curvature = curv;
-    theGeometry->curvatureRatio = curvRatio;
-    theGeometry->elementType = FEM_TRIANGLE;
-    theGeometry->toothL = toothLength;
-    theGeometry->toothW = toothWidth;
-    double dc = 3.5;
-    theGeometry->dhCenter = dc;
-    double hc = 0.5;
-    theGeometry->hCenter = hc;
-    double forcePosx = 50.0;
-    theGeometry->forcePositionX = forcePosx;
-    double forcePosy = 0.0;
-    theGeometry->forcePositionY = forcePosy;
-    double forceR = 30.0;
-    theGeometry->forceRadius = forceR;
-    double dt = 10.0;
-    theGeometry->dhTooth = dt;
-    double ht = 0.5;
-    theGeometry->hTooth = ht;
-    double h = 5.0;
-    theGeometry->h = h;
   
-    //geoMeshGenerate();
-    geoMeshRead("../data/mesh.txt");
-    geoMeshPrint();
-    geoMeshImport();
-    geoAssembleDomains();
-    geoSetDomainName(0, "Free");
-    geoSetDomainName(1, "Inner");
-    geoSetDomainName(2, "Force");
+    // geoMeshGenerate();
+    // geoMeshRead("../data/mesh.txt");
+    // geoMeshPrint();
+    // geoMeshImport();
+    // geoMeshWrite("../data/meshBeforeAssembleDomains.txt");
+    // geoMeshPrint();
+    // geoAssembleDomains();
+    // geoSetDomainName(0, "Free");
+    // geoSetDomainName(1, "Inner");
+    // geoSetDomainName(2, "Force");
+    // geoMeshWrite("../data/meshAfterAssembleDomains.txt");
+    // geoMeshPrint();
 
     //geoMeshWrite("../data/mesh.txt");
+    // geoFinalize();
+    // geoInitialize();
+    geoMeshRead("../data/mesh.txt");
     
         
 //
@@ -81,14 +57,15 @@ int main(void)
     femProblem* theProblem = femElasticityCreate(theGeometry,E,nu,rho,g,PLANAR_STRAIN);
     femElasticityAddBoundaryCondition(theProblem, "Inner", DIRICHLET_X, 0.0);
     femElasticityAddBoundaryCondition(theProblem, "Inner", DIRICHLET_Y, 0.0);
-    // femElasticityAddBoundaryCondition(theProblem, "Force", NEUMANN_Y, 1.0);
+    // femElasticityAddBoundaryCondition(theProblem, "Force", NEUMANN_X, 1.0e5);
     femElasticityPrint(theProblem);
 
 //
 //  -3- Resolution du probleme et calcul des forces
 //
 
-    double *theSoluce = femElasticitySolve(theProblem);
+    // double *theSoluce = femElasticitySolve(theProblem);
+    double *theSoluce = femElasticitySolveBandRCMK(theProblem);
     double *theForces = femElasticityForces(theProblem);
     double area = femElasticityIntegrate(theProblem, fun);   
    

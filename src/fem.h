@@ -136,6 +136,7 @@ void                femElasticityAddBoundaryCondition(femProblem *theProblem, ch
 void                femElasticityAssembleElements(femProblem *theProblem);
 void                femElasticityAssembleNeumann(femProblem *theProblem);
 double*             femElasticitySolve(femProblem *theProblem);
+double*             femElasticitySolveBandRCMK(femProblem *theProblem);
 double*             femElasticityForces(femProblem *theProblem);
 double              femElasticityIntegrate(femProblem *theProblem, double (*f)(double x, double y));
 
