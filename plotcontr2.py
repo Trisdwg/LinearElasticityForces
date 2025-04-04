@@ -55,31 +55,10 @@ if __name__ == "__main__":
     # Constante matériau
     limite_acier = 240e6  # 240 MPa
  
-    mesh = Mesh("data/elasticity.txt")
-    sigma_vm = load_von_mises_field("data/stress.csv")
+    mesh = Mesh("data/mesh3,5k.txt")
+    sigma_vm = load_von_mises_field("build/stress.csv")
  
     vmax = np.max(sigma_vm) * 1.1  # on élargit un peu pour bien voir
     print(f"Contrainte von Mises max : {np.max(sigma_vm):.2e} Pa")
  
-    plt.figure(figsize=(8,6))
- 
-    # Affichage du champ de contraintes
-    tpc = mesh.plotfield(sigma_vm, cmap="jet", vmin=0, vmax=vmax)
-    cbar = plt.colorbar(tpc, label="Contrainte de von Mises [Pa]")
- 
-    # Affichage du repère à 240 MPa uniquement si on le dépasse
-    if np.max(sigma_vm) > limite_acier:
-        y_rel = limite_acier / vmax
-        cbar.ax.axhline(limite_acier, color='black', linestyle='--', linewidth=2)
-        cbar.ax.text(1.05, y_rel, "Limite acier 240 MPa", transform=cbar.ax.transAxes,
-                     va='center', ha='left', color='black', fontsize=9)
- 
-    mesh.plot(color="k", lw=0.5)
-    plt.title("Champ de contraintes de von Mises (déformations planes)")
-    plt.xlabel("X [m]")
-    plt.ylabel("Y [m]")
-    plt.gca().set_aspect("equal")
-    plt.grid(True, alpha=0.3)
-    plt.show()
-
-
+    
