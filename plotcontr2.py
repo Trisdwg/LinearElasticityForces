@@ -55,7 +55,7 @@ if __name__ == "__main__":
     # Constante matériau
     limite_acier = 240e6  # 240 MPa
  
-    mesh = Mesh("data/mesh3,5k.txt")
+    mesh = Mesh("data/mesh2,7k.txt")
     sigma_vm = load_von_mises_field("build/stress.csv")
  
     vmax = np.max(sigma_vm) * 1.1  # on élargit un peu pour bien voir
