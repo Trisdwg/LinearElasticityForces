@@ -99,11 +99,32 @@ int main(int argc, char *argv[])
     double *theSoluce = (useGaussSolver == 1) ? femElasticitySolve(theProblem) : femElasticitySolveBandRCMK(theProblem);
     double *theForces = femElasticityForces(theProblem);
     double area = femElasticityIntegrate(theProblem, fun);   
+
+
+    //ecrivons dans un csv
+
+    double *stressElem;
+    double *strainElem;
+    if (theProblem->planarStrainStress == AXISYM) {
+        stressElem = malloc(4 * theProblem->geometry->theElements->nElem * sizeof(double));
+        strainElem = malloc(4 * theProblem->geometry->theElements->nElem * sizeof(double));
+    } else {
+        stressElem = malloc(3 * theProblem->geometry->theElements->nElem * sizeof(double));
+        strainElem = malloc(3 * theProblem->geometry->theElements->nElem * sizeof(double));
+    }
+
+    calculateStrain(theProblem, &strainElem);
+    calculateStress(theProblem, &stressElem, strainElem);
+
+    writeStressCSV(theProblem, stressElem, "stress.csv");
+    writeStrainCSV(theProblem, strainElem, "strain.csv");
+    //free(stressElem);
    
 //
 //  -4- Deformation du maillage pour le plot final
 //      Creation du champ de la norme du deplacement
 //
+
     
     femNodes *theNodes = theGeometry->theNodes;
     double deformationFactor = 1e5;

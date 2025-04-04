@@ -745,3 +745,190 @@ double* femElasticitySolveBandRCMK(femProblem* theProblem) {
 
     return B;
 }
+
+
+void writeStressCSV(femProblem *theProblem, double *stressElem, const char *filename) {
+    FILE *fp = fopen(filename, "w");
+    if(fp == NULL) {
+        Error("Impossible d'ouvrir le fichier CSV en écriture.");
+    }
+    
+    int nElem = theProblem->geometry->theElements->nElem;
+    // Écrire l'en-tête du fichier CSV
+    fprintf(fp, "Element,Sigma_x,Sigma_y,Tau_xy\n");
+    
+    // Parcourir tous les éléments et écrire les contraintes associées
+    for (int i = 0; i < nElem; i++) {
+        // Si stressElem est organisé par élément avec 3 composantes par élément,
+        // alors l'élément i aura :
+        // stressElem[3*i] = sigma_x, stressElem[3*i+1] = sigma_y, stressElem[3*i+2] = tau_xy.
+        fprintf(fp, "%d,%e,%e,%e\n", i, stressElem[3*i], stressElem[3*i+1], stressElem[3*i+2]);
+    }
+    
+    fclose(fp);
+}
+ 
+void writeStrainCSV(femProblem *theProblem, double *strain, const char *filename) {
+    FILE *fp = fopen(filename, "w");
+    if(fp == NULL) {
+        Error("Impossible d'ouvrir le fichier CSV en écriture.");
+    }
+    
+    int nElem = theProblem->geometry->theElements->nElem;
+    // Écrire l'en-tête du fichier CSV
+    fprintf(fp, "Element,epsilon_x,epsilon_y,epsilon_xy\n");
+    
+    // Parcourir tous les éléments et écrire les contraintes associées
+    for (int i = 0; i < nElem; i++) {
+        // Si stressElem est organisé par élément avec 3 composantes par élément,
+        // alors l'élément i aura :
+        // stressElem[3*i] = sigma_x, stressElem[3*i+1] = sigma_y, stressElem[3*i+2] = tau_xy.
+        fprintf(fp, "%d,%e,%e,%e\n", i, strain[3*i], strain[3*i+1], strain[3*i+2]);
+    }
+    
+    fclose(fp);
+}
+
+
+void calculateStrain(femProblem *theProblem, double **strainElem) {
+    femMesh *mesh = theProblem->geometry->theElements;
+    femNodes *nodes = theProblem->geometry->theNodes;
+    femDiscrete *space = theProblem->space;
+    femIntegration *rule = theProblem->rule;
+    int nElem = mesh->nElem;
+    int nLocal = mesh->nLocalNode;  // par exemple 3 pour un triangle, 4 pour un quad
+ 
+    // Allouer strainElem : pour chaque élément, un vecteur à 3 composantes (εxx, εyy, γxy)
+    //*strainElem = malloc(nElem * 3 * sizeof(double));
+ 
+    // Pour chaque élément
+    for (int elem = 0; elem < nElem; elem++) {
+        int map[4];    // tableau d'indices (max 4 noeuds par élément)
+        double x[4], y[4];
+        double u_local[8]; // Pour 4 noeuds en 2D : 2*4; pour triangle, on utilisera les 6 premières positions.
+        for (int j = 0; j < nLocal; j++) {
+            map[j] = mesh->elem[elem * nLocal + j];
+            x[j] = nodes->X[map[j]];
+            y[j] = nodes->Y[map[j]];
+            u_local[2*j] = theProblem->soluce[2 * map[j]];
+            u_local[2*j+1] = theProblem->soluce[2 * map[j] + 1];
+        }
+        // Initialiser les sommes pour l'intégration
+        double eps_sum[3] = {0.0, 0.0, 0.0};
+        double weight_sum = 0.0;
+ 
+        // Boucle sur les points d'intégration
+        for (int ip = 0; ip < rule->n; ip++) {
+            double xsi = rule->xsi[ip];
+            double eta = (rule->eta != NULL) ? rule->eta[ip] : 0.0;
+            double w = rule->weight[ip];
+ 
+            double phi[4], dphidxsi[4], dphideta[4];
+            double dphidx[4], dphidy[4];
+ 
+            // Calcul des fonctions de forme et de leurs dérivées pour l'élément
+            femDiscretePhi2(space, xsi, eta, phi);
+            femDiscreteDphi2(space, xsi, eta, dphidxsi, dphideta);
+ 
+            // Calcul de la jacobienne
+            double dxdxsi = 0.0, dxdeta = 0.0, dydxsi = 0.0, dydeta = 0.0;
+            for (int i = 0; i < space->n; i++) {
+                dxdxsi += x[i] * dphidxsi[i];
+                dxdeta += x[i] * dphideta[i];
+                dydxsi += y[i] * dphidxsi[i];
+                dydeta += y[i] * dphideta[i];
+            }
+            double jac = fabs(dxdxsi * dydeta - dxdeta * dydxsi);
+            // Transformation en dérivées globales
+            for (int i = 0; i < space->n; i++) {
+                dphidx[i] = (dphidxsi[i] * dydeta - dphideta[i] * dydxsi) / jac;
+                dphidy[i] = (dphideta[i] * dxdxsi - dphidxsi[i] * dxdeta) / jac;
+            }
+            // Calcul du gradient de déplacement dans l'élément
+            double duxdx = 0.0, duydy = 0.0, duxdy = 0.0, duydx = 0.0;
+            for (int i = 0; i < space->n; i++) {
+                duxdx += dphidx[i] * u_local[2*i];      // ∂uₓ/∂x
+                duydy += dphidy[i] * u_local[2*i+1];      // ∂u_y/∂y
+                duxdy += dphidy[i] * u_local[2*i];         // ∂uₓ/∂y
+                duydx += dphidx[i] * u_local[2*i+1];         // ∂u_y/∂x
+            }
+            // Définir les composantes de la déformation au point d'intégration
+            double eps_xx = duxdx;
+            double eps_yy = duydy;
+            double gamma_xy = (duxdy + duydx)/2;
+ 
+ 
+            
+             // Cumuler l'intégrale pondérée
+            eps_sum[0] += eps_xx * jac * w;
+            eps_sum[1] += eps_yy * jac * w;
+            eps_sum[2] += gamma_xy * jac * w;
+            weight_sum += jac * w;           
+            
+ 
+        }
+        
+         // Stocker la valeur moyenne des déformations pour l'élément
+        (*strainElem)[elem*3]   = eps_sum[0] / weight_sum;
+        (*strainElem)[elem*3+1] = eps_sum[1] / weight_sum;
+        (*strainElem)[elem*3+2] = eps_sum[2] / weight_sum;       
+        
+ 
+    }
+}
+ 
+void calculateStress(femProblem *myProblem, double **stressElem, double *strainElem) {
+    double E = myProblem->E;
+    double nu = myProblem->nu;
+    int nElem = myProblem->geometry->theElements->nElem;
+    
+    if (myProblem->planarStrainStress == AXISYM) {
+        // Pour le cas axisymétrique, on attend 4 composantes par élément.
+        // Les formules utilisées sont :
+        // σ_rr = D11·ε_rr + D12·(ε_zz + ε_θθ)
+        // σ_zz = D12·ε_rr + D11·ε_zz + D12·ε_θθ
+        // σ_θθ = D12·ε_rr + D12·ε_zz + D11·ε_θθ
+        // τ_rz  = D33·γ_rz
+        double D11 = E*(1 - nu) / ((1 + nu)*(1 - 2*nu));
+        double D12 = E*nu / ((1 + nu)*(1 - 2*nu));
+        double D33 = E / (2*(1+nu));
+        
+        for (int iElem = 0; iElem < nElem; iElem++) {
+            double eps_rr   = strainElem[4 * iElem];
+            double eps_zz   = strainElem[4 * iElem + 1];
+            double eps_tt   = strainElem[4 * iElem + 2];
+            double gamma_rz = strainElem[4 * iElem + 3];
+            
+            double sigma_rr = D11 * eps_rr + D12 * (eps_zz + eps_tt);
+            double sigma_zz = D12 * eps_rr + D11 * eps_zz + D12 * eps_tt;
+            double sigma_tt = D12 * eps_rr + D12 * eps_zz + D11 * eps_tt;
+            double tau_rz   = D33 * gamma_rz;
+            
+            (*stressElem)[4 * iElem]     = sigma_rr;
+            (*stressElem)[4 * iElem + 1] = sigma_zz;
+            (*stressElem)[4 * iElem + 2] = sigma_tt;
+            (*stressElem)[4 * iElem + 3] = tau_rz;
+        }
+    } else { // Cas PLANAR_STRAIN ou PLANAR_STRESS
+        for (int iElem = 0; iElem < nElem; iElem++) {
+            double eps_x = strainElem[3 * iElem];
+            double eps_y = strainElem[3 * iElem + 1];
+            double gamma_xy = strainElem[3 * iElem + 2];
+            double sigma_x, sigma_y, tau_xy;
+            if (myProblem->planarStrainStress == PLANAR_STRAIN) {
+                sigma_x = (E * (1 - nu) / ((1 + nu) * (1 - 2 * nu))) * eps_x +
+                          (E * nu / ((1 + nu) * (1 - 2 * nu))) * eps_y;
+                sigma_y = (E * nu / ((1 + nu) * (1 - 2 * nu))) * eps_x +
+                          (E * (1 - nu) / ((1 + nu) * (1 - 2 * nu))) * eps_y;
+                tau_xy  = E / (2 * (1 + nu)) * gamma_xy;
+            } else { // PLANAR_STRESS
+                sigma_x = E / (1 - nu * nu) * (eps_x + nu * eps_y);
+                sigma_y = E / (1 - nu * nu) * (eps_y + nu * eps_x);
+                tau_xy  = E / (2 * (1 + nu)) * gamma_xy;
+            }
+            (*stressElem)[3 * iElem]     = sigma_x;
+            (*stressElem)[3 * iElem + 1] = sigma_y;
+            (*stressElem)[3 * iElem + 2] = tau_xy;
+        }
+    }
+}

@@ -141,6 +141,13 @@ void                renumberMesh(femGeo *theGeometry);
 double*             femElasticitySolveBandRCMK(femProblem *theProblem);
 double*             femElasticityForces(femProblem *theProblem);
 double              femElasticityIntegrate(femProblem *theProblem, double (*f)(double x, double y));
+void writeStressCSV(femProblem *theProblem, double *stressElem, const char *filename);
+void writeStrainCSV(femProblem *theProblem, double *strain, const char *filename);
+void calculateStrain(femProblem *theProblem, double **strainElem) ;
+void calculateStress(femProblem *myProblem, double **stressElem, double *strainElem) ;
+
+
+
 
 
 femIntegration*     femIntegrationCreate(int n, femElementType type);
