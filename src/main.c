@@ -43,7 +43,7 @@ int main(void)
     //geoMeshWrite("../data/mesh.txt");
     // geoFinalize();
     // geoInitialize();
-    geoMeshRead("../data/mesh.txt");
+    geoMeshRead("../data/meshHeavy.txt");
     
         
 //
