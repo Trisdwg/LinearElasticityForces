@@ -16,7 +16,7 @@ double fun(double x, double y)
     return 1;
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {  
     printf("\n\n    V : Mesh and displacement norm \n");
     printf("    D : Domains \n");
@@ -24,26 +24,53 @@ int main(void)
     printf("    Y : Horizontal residuals for unconstrained equations \n");
     printf("    N : Next domain highlighted\n\n\n");
 
+    char *inputfile = "../data/mesh2,7k.txt";
+
+    for(int i =0; i < argc; ++i){
+        if(strncasecmp(argv[i], "-in",3)==0)
+            inputfile = argv[i+1];
+    }
+
+    printf("Input file: %s\n", inputfile);
     geoInitialize();
     femGeo* theGeometry = geoGetGeometry();
-  
-    // geoMeshGenerate(0.1);
-    // geoMeshRead("../data/mesh.txt");
-    // geoMeshPrint();
-    // geoMeshImport();
-    // geoMeshWrite("../data/meshBeforeAssembleDomains.txt");
-    // geoMeshPrint();
-    // geoAssembleDomains();
-    // geoSetDomainName(0, "Free");
-    // geoSetDomainName(1, "Inner");
-    // geoSetDomainName(2, "Force");
-    // geoMeshWrite("../data/meshAfterAssembleDomains.txt");
-    // geoMeshPrint();
+    // theGeometry->elementType = FEM_TRIANGLE;
+    // 
+    // Paramètres de la géométrie
+    // double ri = 18.85;
+    // double ro = 25.0;
+    // double curv = 1.0/(1.0*ri);
+    // double curvRatio = 0.4583333333333333;
+    // int nTeeth = 32;
+    // double toothLength = 3.0;
+    // double toothWidth = 1.5;
+    // theGeometry->Rinner = ri;
+    // theGeometry->Router = ro;
+    // theGeometry->curvature = curv;
+    // theGeometry->curvatureRatio = curvRatio;
+    // theGeometry->toothL = toothLength;
+    // theGeometry->toothW = toothWidth;
+    // theGeometry->nTooths = nTeeth;
+    // double dc = 3.5;
+    // theGeometry->dhCenter = dc;
+    // double hc = 0.5;
+    // theGeometry->hCenter = hc;
+    // double forcePosx = 50.0;
+    // theGeometry->forcePositionX = forcePosx;
+    // double forcePosy = 0.0;
+    // theGeometry->forcePositionY = forcePosy;
+    // double forceR = 30.0;
+    // theGeometry->forceRadius = forceR;
+    // double dt = 10.0;
+    // theGeometry->dhTooth = dt;
+    // double ht = 0.5;
+    // theGeometry->hTooth = ht;
+    // double h = 5.0;
+    // theGeometry->h = h;
 
-    // geoMeshWrite("../data/mesh.txt");
     geoFinalize();
     geoInitialize();
-    geoMeshRead("../data/mesh17k.txt");
+    geoMeshRead(inputfile);
     
         
 //
@@ -58,7 +85,7 @@ int main(void)
     renumberMesh(theProblem->geometry);
     femElasticityAddBoundaryCondition(theProblem, "Inner", DIRICHLET_X, 0.0);
     femElasticityAddBoundaryCondition(theProblem, "Inner", DIRICHLET_Y, 0.0);
-    // femElasticityAddBoundaryCondition(theProblem, "Force", NEUMANN_X, 0.0);
+    femElasticityAddBoundaryCondition(theProblem, "Force", NEUMANN_Y, -10.0e3);
     femElasticityPrint(theProblem);
 
 //

@@ -54,6 +54,7 @@ typedef struct {
 typedef struct {
     double Rinner, Router, curvature, curvatureRatio, toothL, toothW;
     double h, dhCenter, hCenter, dhTooth, hTooth,forcePositionX, forcePositionY, forceRadius;
+    int nTooths;
     femElementType elementType;
     double (*geoSize)(double x, double y);
     femNodes *theNodes;

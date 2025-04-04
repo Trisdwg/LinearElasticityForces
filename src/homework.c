@@ -2,22 +2,14 @@
 
 double geoSize(double x, double y) {
     femGeo *theGeometry = geoGetGeometry();
-    double dc = 3.5;
-    theGeometry->dhCenter = dc;
-    double hc = 0.5;
-    theGeometry->hCenter = hc;
-    double forcePosx = 50.0;
-    theGeometry->forcePositionX = forcePosx;
-    double forcePosy = 0.0;
-    theGeometry->forcePositionY = forcePosy;
-    double forceR = 30.0;
-    theGeometry->forceRadius = forceR;
-    double dt = 10.0;
-    theGeometry->dhTooth = dt;
-    double ht = 0.5;
-    theGeometry->hTooth = ht;
-    double h = 5.0;
-    theGeometry->h = h;
+    double dc = theGeometry->dhCenter;
+    double hc = theGeometry->hCenter;
+    double forcePosx = theGeometry->forcePositionX;
+    double forcePosy = theGeometry->forcePositionY;
+    double forceR = theGeometry->forceRadius;
+    double dt = theGeometry->dhTooth;
+    double ht = theGeometry->hTooth;
+    double h = theGeometry->h;
     double curvRatio = theGeometry->curvatureRatio;
     double curv = theGeometry->curvature;
     double rin = theGeometry->Rinner;
@@ -81,23 +73,13 @@ double geoSize(double x, double y) {
 
 void geoMeshGenerate(double lc) {
     femGeo *theGeometry = geoGetGeometry();
-    // theGeometry->LxPlate = 1.0;
-    // theGeometry->LyPlate = 1.0;
-    // theGeometry->h = 1.0 * 0.05;
-    double ri = 18.85;
-    double ro = 25.0;
-    double curv = 1.0/(1.0*ri);
-    double curvRatio = 0.4583333333333333;
-    int nTeeth = 32;
-    double toothLength = 3.0;
-    double toothWidth = 1.5;
-    theGeometry->Rinner = ri;
-    theGeometry->Router = ro;
-    theGeometry->curvature = curv;
-    theGeometry->curvatureRatio = curvRatio;
-    theGeometry->elementType = FEM_TRIANGLE;
-    theGeometry->toothL = toothLength;
-    theGeometry->toothW = toothWidth;
+    double ri = theGeometry->Rinner;
+    double ro = theGeometry->Router;
+    double curv = theGeometry->curvature;
+    double curvRatio = theGeometry->curvatureRatio;
+    int nTeeth = theGeometry->nTooths;
+    double toothLength = theGeometry->toothL;
+    double toothWidth = theGeometry->toothW;
   
     geoSetSizeCallback(geoSize);
   
