@@ -332,7 +332,7 @@ void femElasticityAssembleElements(femProblem *theProblem){
 
 
 void femElasticityAssembleNeumann(femProblem *theProblem){
-    printf("Assembling Neumann boundary conditions...\n");
+    // printf("Assembling Neumann boundary conditions...\n");
     femFullSystem  *theSystem = theProblem->system;
     femIntegration *theRule = theProblem->ruleEdge;
     femDiscrete    *theSpace = theProblem->spaceEdge;
@@ -391,13 +391,13 @@ double *femElasticitySolve(femProblem *theProblem){
     femFullSystem  *theSystem = theProblem->system;
  
     femFullSystemInit(theSystem);
-    printf("After initialization\n");
+    // printf("After initialization\n");
 
     femElasticityAssembleElements(theProblem);
-    printf("After assembling elements\n");
+    // printf("After assembling elements\n");
     
     femElasticityAssembleNeumann(theProblem);
-    printf("After assembling Neumann conditions\n");
+    // printf("After assembling Neumann conditions\n");
 
     int size = theSystem->size;
 

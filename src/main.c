@@ -25,13 +25,17 @@ int main(int argc, char *argv[])
     printf("    N : Next domain highlighted\n\n\n");
 
     char *inputfile = "../data/mesh2,7k.txt";
+    int useGaussSolver = 0;
 
     for(int i =0; i < argc; ++i){
         if(strncasecmp(argv[i], "-in",3)==0)
             inputfile = argv[i+1];
+        if(strncasecmp(argv[i], "-gauss",5)==0)
+            useGaussSolver = 1;
     }
 
     printf("Input file: %s\n", inputfile);
+    printf("Solver: %s\n", useGaussSolver == 1 ? "Gauss" : "BandRCMK");
     geoInitialize();
     femGeo* theGeometry = geoGetGeometry();
     // theGeometry->elementType = FEM_TRIANGLE;
@@ -68,8 +72,8 @@ int main(int argc, char *argv[])
     // double h = 5.0;
     // theGeometry->h = h;
 
-    geoFinalize();
-    geoInitialize();
+    // geoFinalize();
+    // geoInitialize();
     geoMeshRead(inputfile);
     
         
@@ -85,16 +89,14 @@ int main(int argc, char *argv[])
     renumberMesh(theProblem->geometry);
     femElasticityAddBoundaryCondition(theProblem, "Inner", DIRICHLET_X, 0.0);
     femElasticityAddBoundaryCondition(theProblem, "Inner", DIRICHLET_Y, 0.0);
-    femElasticityAddBoundaryCondition(theProblem, "Force", NEUMANN_Y, 10.0e4);
+    femElasticityAddBoundaryCondition(theProblem, "Force", NEUMANN_Y, -10.0e3);
     femElasticityPrint(theProblem);
 
 //
 //  -3- Resolution du probleme et calcul des forces
 //
 
-    // double *theSoluce = femElasticitySolve(theProblem);
-    
-    double *theSoluce = femElasticitySolveBandRCMK(theProblem);
+    double *theSoluce = (useGaussSolver == 1) ? femElasticitySolve(theProblem) : femElasticitySolveBandRCMK(theProblem);
     double *theForces = femElasticityForces(theProblem);
     double area = femElasticityIntegrate(theProblem, fun);   
    
